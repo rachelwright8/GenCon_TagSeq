@@ -1,0 +1,725 @@
+---
+title: "Fitness ~ Expression Regression"
+author: "Rachel Wright"
+date: "6/30/2021"
+output: pdf_document
+---
+
+Fitness ~ expression regressions per treatment
+
+Load expression and trait data
+
+```{r}
+library(tidyverse)
+load("trait_data_good_names.Rdata")
+head(datTraits)
+```
+
+```{r}
+vsdpvals <- read.csv("29june21_WaldtoCont_VSDandPVALS.csv")
+vsdpvals[1:2,c(1:5,297:307)]
+```
+
+Calculate survival rates per treatment
+
+```{r}
+surv_rates <- datTraits %>% group_by(treat) %>% summarize(meanSurv = mean(fracSurv))
+surv_rates
+```
+
+Set p-value cutoff
+
+```{r}
+alpha <- 0.1
+```
+
+# Vibrio treatment
+Calculate normalized survival rates per treatment for samples in those treatments
+
+
+```{r}
+bac_samples <- datTraits %>% filter(treat=="b") %>% select(sampleID, fracSurv) %>%
+  mutate(normSurv = fracSurv/0.9)
+hist(bac_samples$fracSurv)
+hist(bac_samples$normSurv)
+```
+
+Up-regulated genes
+
+```{r Up-regulated genes}
+bac_expr_up <- vsdpvals %>% filter(padj.b<alpha & LFC.b>0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% bac_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+bac_expr_up[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+bac_up_expr_surv <- merge(bac_samples, bac_expr_up, by="sampleID")
+head(bac_up_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmBacUp <- summary(lm(normSurv~z_score,data=bac_up_expr_surv))
+lmBacUp
+
+plot_up_bac <- ggplot(bac_up_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Upregulated in Vibrio p=",round(lmBacUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_up_bac
+```
+
+Down-regulated genes
+
+```{r Down-regulated genes}
+bac_expr_down <- vsdpvals %>% filter(padj.b<alpha & LFC.b<0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% bac_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+bac_expr_down[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+bac_down_expr_surv <- merge(bac_samples, bac_expr_down, by="sampleID")
+head(bac_down_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmBacDown <- summary(lm(normSurv~z_score,data=bac_down_expr_surv))
+lmBacDown
+
+plot_down_bac <- ggplot(bac_down_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Downregulated in Vibrio p=",round(lmBacDown$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_down_bac
+```
+
+
+# Heat treatment
+
+```{r}
+heat_samples <- datTraits %>% filter(treat=="h") %>% select(sampleID, fracSurv) %>%
+  mutate(normSurv = fracSurv/0.8724138)
+hist(heat_samples$fracSurv)
+hist(heat_samples$normSurv)
+```
+
+Filter expression data per treatment and genes DE in that treatment
+
+Up-regulated genes
+
+```{r Up-regulated genes}
+heat_expr_up <- vsdpvals %>% filter(padj.h<alpha & LFC.h>0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% heat_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+heat_expr_up[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+heat_up_expr_surv <- merge(heat_samples, heat_expr_up, by="sampleID")
+head(heat_up_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmHeatUp <- summary(lm(normSurv~z_score,data=heat_up_expr_surv))
+lmHeatUp
+
+plot_up_heat <- ggplot(heat_up_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Upregulated in 30°C p=",round(lmHeatUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_up_heat
+```
+
+Down-regulated genes
+
+```{r Down-regulated genes}
+heat_expr_down <- vsdpvals %>% filter(padj.h<alpha & LFC.h<0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% heat_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+heat_expr_down[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+heat_down_expr_surv <- merge(heat_samples, heat_expr_down, by="sampleID")
+head(heat_down_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmHeatDown <- summary(lm(normSurv~z_score,data=heat_down_expr_surv))
+lmHeatDown
+
+plot_down_heat <- ggplot(heat_down_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Downregulated in 30°C p=",round(lmHeatDown$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_down_heat
+```
+
+
+# pCO2 treatment
+
+```{r}
+pco_samples <- datTraits %>% filter(treat=="p") %>% select(sampleID, fracSurv) %>%
+  mutate(normSurv = fracSurv/0.8405455)
+hist(pco_samples$fracSurv)
+hist(pco_samples$normSurv)
+```
+
+Filter expression data per treatment and genes DE in that treatment
+
+Up-regulated genes
+
+```{r Up-regulated genes}
+pco_expr_up <- vsdpvals %>% filter(padj.p<alpha & LFC.p>0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% pco_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+pco_expr_up[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+pco_up_expr_surv <- merge(pco_samples, pco_expr_up, by="sampleID")
+head(pco_up_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmPCOUp <- summary(lm(normSurv~z_score,data=pco_up_expr_surv))
+lmPCOUp
+
+plot_up_pco <- ggplot(pco_up_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Upregulated in pCO2 p=",round(lmPCOUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_up_pco
+```
+
+Down-regulated genes
+
+```{r Down-regulated genes}
+pco_expr_down <- vsdpvals %>% filter(padj.p<alpha & LFC.p<0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% pco_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+pco_expr_down[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+pco_down_expr_surv <- merge(pco_samples, pco_expr_down, by="sampleID")
+head(pco_down_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmPCODown <- summary(lm(normSurv~z_score,data=pco_down_expr_surv))
+lmPCODown
+
+plot_down_pco <- ggplot(pco_down_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Downregulated in pCO2 p=",round(lmPCODown$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_down_pco
+```
+
+# Combined treatment
+
+```{r}
+combined_samples <- datTraits %>% filter(treat=="a") %>% select(sampleID, fracSurv) %>%
+  mutate(normSurv = fracSurv/0.8891228)
+hist(combined_samples$fracSurv)
+hist(combined_samples$normSurv)
+```
+
+Filter expression data per treatment and genes DE in that treatment
+
+Up-regulated genes
+
+```{r Up-regulated genes}
+comb_expr_up <- vsdpvals %>% filter(padj.a<alpha & LFC.a>0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% combined_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+comb_expr_up[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+combined_up_expr_surv <- merge(combined_samples, comb_expr_up, by="sampleID")
+head(combined_up_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmCombUp <- summary(lm(normSurv~z_score,data=combined_up_expr_surv))
+lmCombUp
+
+plot_up_comb <- ggplot(combined_up_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Upregulated in Combined p=",round(lmCombUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_up_comb
+```
+
+Down-regulated genes
+
+```{r Down-regulated genes}
+comb_expr_down <- vsdpvals %>% filter(padj.a<alpha & LFC.a<0) %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% combined_samples$sampleID) %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  pivot_longer(cols = starts_with("Amillepora"), names_to = "gene", values_to = "expr") %>%
+  group_by(gene) %>%
+  mutate(z_score = (expr-mean(expr))/sd(expr)) %>%
+  ungroup()
+comb_expr_down[1:3,1:3]
+```
+
+Make data frame with expression data and survival
+
+```{r}
+comb_down_expr_surv <- merge(combined_samples, comb_expr_down, by="sampleID")
+head(comb_down_expr_surv)
+```
+
+Linear model and plot
+
+```{r}
+lmCombDown <- summary(lm(normSurv~z_score,data=comb_down_expr_surv))
+lmCombDown
+
+plot_down_comb <- ggplot(comb_down_expr_surv, aes(x=z_score, y=normSurv)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Survival")+
+  ggtitle(paste("Downregulated in Combined p=",round(lmCombDown$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_down_comb
+```
+
+# Save all plots
+
+```{r}
+# pdf(file="fig_allCorrelations.pdf", height=10,width=10)
+gridExtra::grid.arrange(
+  plot_up_bac,plot_down_bac,
+  plot_up_heat,plot_down_heat,
+  plot_up_pco, plot_down_pco,
+  plot_up_comb, plot_down_comb,
+  ncol=2
+)
+# dev.off()
+```
+
+How many genes in each?
+```{r}
+n_genes <- data.frame("bac_up"= bac_expr_up %>% summarize("bac_up"=n_distinct(gene)),
+           "bac_down"=bac_expr_down %>% summarize("bac_down"=n_distinct(gene)),
+           "heat_up"=heat_expr_up %>% summarize("heat_up"=n_distinct(gene)),
+           "heat_down"=heat_expr_down %>% summarize("heat_down"=n_distinct(gene)),
+           "pco_up"=pco_expr_up %>% summarize("pco_up"=n_distinct(gene)),
+           "pco_down"=pco_expr_down %>% summarize("pco_down"=n_distinct(gene)),
+           "comb_up"=comb_expr_up %>% summarize("comb_up"=n_distinct(gene)),
+           "comb_down"=comb_expr_down %>% summarize("comb_down"=n_distinct(gene)))
+n_genes
+```
+
+
+# Regress bleaching score with gene expression response in heat treatment
+
+# Heat treatment
+
+```{r}
+datTraits %>% group_by(treat) %>% summarize(mean(color.log)) # the color is an INCREASE in color
+
+heat_samples_color <- datTraits %>% filter(treat=="h") %>% select(sampleID, color.log) %>%
+  mutate(normColor = color.log/1.747530)
+hist(heat_samples_color$color.log)
+hist(heat_samples_color$normColor)
+```
+
+Filter expression data per treatment and genes DE in that treatment
+
+Up-regulated genes
+
+```{r}
+heat_up_expr_color <- merge(heat_samples_color, heat_expr_up, by="sampleID")
+head(heat_up_expr_color)
+```
+
+Linear model and plot
+
+```{r}
+lmHeatUpCol <- summary(lm(normColor~z_score,data=heat_up_expr_color))
+lmHeatUp
+
+plot_up_heat_col <- ggplot(heat_up_expr_color, aes(x=z_score, y=normColor)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Color Increase")+
+  ggtitle(paste("Upregulated in 30°C p=",round(lmHeatUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_up_heat_col
+```
+
+Down-regulated genes
+
+```{r}
+heat_down_expr_color <- merge(heat_samples_color, heat_expr_down, by="sampleID")
+head(heat_down_expr_color)
+```
+
+Linear model and plot
+
+```{r}
+lmHeatDownCol <- summary(lm(normColor~z_score,data=heat_down_expr_color))
+lmHeatDownCol
+
+plot_down_heat_col <- ggplot(heat_down_expr_color, aes(x=z_score, y=normColor)) +
+  # geom_point() +
+  geom_smooth(method=lm , color="red", fill="grey", se=TRUE) +
+  xlab("Z score")+
+  ylab("Normalized Color Increase")+
+  ggtitle(paste("Downregulated in 30°C p=",round(lmHeatUp$coefficients[8],3),sep=""))+
+  theme_classic()
+plot_down_heat_col
+```
+
+```{r}
+pdf(file="fig_heatCorrelationsColor.pdf", height=4,width=10)
+gridExtra::grid.arrange(
+  plot_up_heat_col, plot_down_heat_col,
+  ncol=2
+)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Selection Coefficients
+based on adaptive gene expression PLOSGenetics paper
+
+Format vsd for expression values only
+
+```{r format vsd}
+vsd <- vsdpvals %>% column_to_rownames("X") %>% 
+  select_if(names(.) %in% datTraits$sampleID)
+# make sure sample names match between expression data file (vsd) and fitness data file (datTraits)
+table(names(vsd) %in% datTraits$sampleID)
+table(names(vsd)==datTraits$sampleID)
+```
+
+Separate expression for each treatment
+
+```{r}
+sam_control <- datTraits$sampleID[datTraits$treat=="c"]
+sam_bac <- datTraits$sampleID[datTraits$treat=="b"]
+sam_heat <- datTraits$sampleID[datTraits$treat=="h"]
+sam_pco <- datTraits$sampleID[datTraits$treat=="p"]
+sam_comb <- datTraits$sampleID[datTraits$treat=="a"]
+
+vsd.control <- vsd %>% select_if(names(.) %in% sam_control)
+vsd.bac <- vsd %>% select_if(names(.) %in% sam_bac)
+vsd.heat <- vsd %>% select_if(names(.) %in% sam_heat)
+vsd.pco <- vsd %>% select_if(names(.) %in% sam_pco)
+vsd.comb <- vsd %>% select_if(names(.) %in% sam_comb)
+```
+
+
+Calculate relative fitness (divide survival by mean survival in each treatment)
+
+```{r Calculating Individual Fitness}
+# selecting individual fitness
+fitness <- datTraits %>% 
+  select(sampleID, treat, fracSurv) %>%
+  group_by(treat) %>%
+  mutate(rel.fit = fracSurv/mean(fracSurv))
+head(fitness)
+
+rel.fit.control <- fitness$rel.fit[fitness$sampleID %in% sam_control]
+rel.fit.bac <- fitness$rel.fit[fitness$sampleID %in% sam_bac]
+rel.fit.heat <- fitness$rel.fit[fitness$sampleID %in% sam_heat]
+rel.fit.pco <- fitness$rel.fit[fitness$sampleID %in% sam_pco]
+rel.fit.comb <- fitness$rel.fit[fitness$sampleID %in% sam_comb]
+```
+
+Standardize expression to z-scores
+
+```{r}
+z.score_control <- as.matrix(vsd.control)
+Mean_Y = rowMeans(z.score_control,na.rm=T)
+VY = apply(z.score_control,1,var,na.rm=T)
+z.score_control = sweep(z.score_control,1,Mean_Y,'-')
+z.score_control = sweep(z.score_control,1,sqrt(VY),'/')
+z.score_control
+
+z.score_bac <- as.matrix(vsd.bac)
+Mean_Y = rowMeans(z.score_bac,na.rm=T)
+VY = apply(z.score_bac,1,var,na.rm=T)
+z.score_bac = sweep(z.score_bac,1,Mean_Y,'-')
+z.score_bac = sweep(z.score_bac,1,sqrt(VY),'/')
+z.score_bac
+
+z.score_heat <- as.matrix(vsd.heat)
+Mean_Y = rowMeans(z.score_heat,na.rm=T)
+VY = apply(z.score_heat,1,var,na.rm=T)
+z.score_heat = sweep(z.score_heat,1,Mean_Y,'-')
+z.score_heat = sweep(z.score_heat,1,sqrt(VY),'/')
+z.score_heat
+
+z.score_pco <- as.matrix(vsd.pco)
+Mean_Y = rowMeans(z.score_pco,na.rm=T)
+VY = apply(z.score_pco,1,var,na.rm=T)
+z.score_pco = sweep(z.score_pco,1,Mean_Y,'-')
+z.score_pco = sweep(z.score_pco,1,sqrt(VY),'/')
+z.score_pco
+
+z.score_comb <- as.matrix(vsd.comb)
+Mean_Y = rowMeans(z.score_comb,na.rm=T)
+VY = apply(z.score_comb,1,var,na.rm=T)
+z.score_comb = sweep(z.score_comb,1,Mean_Y,'-')
+z.score_comb = sweep(z.score_comb,1,sqrt(VY),'/')
+z.score_comb
+```
+
+Calculate selection coefficients
+
+```{r control}
+pvalue.con <- c()
+slope.con <- c()
+
+for(i in 1:dim(z.score_control)[1]){
+   reg <- lm(rel.fit.control ~ z.score_control[i, ])
+   slope.con[i] <- summary(reg)$coefficients[2,1]
+   pvalue.con[i] <- coef(summary(reg))[, "Pr(>|t|)"][2]
+}
+
+results.control <- cbind(slope.con, pvalue.con)
+rownames(results.control) <- rownames(z.score_control)
+head(results.control)
+```
+
+```{r bac}
+pvalue.bac <- c()
+slope.bac <- c()
+
+for(i in 1:dim(z.score_bac)[1]){
+   reg <- lm(rel.fit.bac ~ z.score_bac[i, ])
+   slope.bac[i] <- summary(reg)$coefficients[2,1]
+   pvalue.bac[i] <- coef(summary(reg))[, "Pr(>|t|)"][2]
+}
+
+results.bac <- cbind(slope.bac, pvalue.bac)
+rownames(results.bac) <- rownames(z.score_bac)
+head(results.bac)
+```
+
+```{r heat}
+pvalue.heat <- c()
+slope.heat <- c()
+
+for(i in 1:dim(z.score_heat)[1]){
+   reg <- lm(rel.fit.heat ~ z.score_heat[i, ])
+   slope.heat[i] <- summary(reg)$coefficients[2,1]
+   pvalue.heat[i] <- coef(summary(reg))[, "Pr(>|t|)"][2]
+}
+
+results.heat <- cbind(slope.heat, pvalue.heat)
+rownames(results.heat) <- rownames(z.score_heat)
+head(results.heat)
+```
+
+```{r pco regression}
+pvalue.pco <- c()
+slope.pco <- c()
+
+for(i in 1:dim(z.score_pco)[1]){
+   reg <- lm(rel.fit.pco ~ z.score_pco[i, ])
+   slope.pco[i] <- summary(reg)$coefficients[2,1]
+   pvalue.pco[i] <- coef(summary(reg))[, "Pr(>|t|)"][2]
+}
+
+results.pco <- cbind(slope.pco, pvalue.pco)
+rownames(results.pco) <- rownames(z.score_pco)
+head(results.pco)
+```
+
+```{r combined combined}
+pvalue.comb <- c()
+slope.comb <- c()
+
+for(i in 1:dim(z.score_comb)[1]){
+   reg <- lm(rel.fit.comb ~ z.score_comb[i, ])
+   slope.comb[i] <- summary(reg)$coefficients[2,1]
+   pvalue.comb[i] <- coef(summary(reg))[, "Pr(>|t|)"][2]
+}
+
+results.comb <- cbind(slope.comb, pvalue.comb)
+rownames(results.comb) <- rownames(z.score_comb)
+head(results.comb)
+```
+
+Combined regression results with DE results
+
+```{r}
+results.allTreats <- cbind(results.control, results.bac, results.heat, results.pco, results.comb)
+head(results.allTreats)
+
+seqRes <- vsdpvals %>% column_to_rownames("X") %>%
+  select_if(grepl("LFC|padj",names(.)))
+head(seqRes)
+
+coef.de <- merge(results.allTreats, seqRes, by=0)
+row.names(coef.de) <- coef.de$Row.names
+coef.de$Row.names <- NULL
+head(coef.de)
+```
+
+```{r}
+alpha <- 0.05
+violin.bac <- coef.de %>% filter(padj.b<alpha) %>%
+  mutate("direction" = ifelse(LFC.b>0,"up","down")) %>%
+  select(slope.bac, direction) %>%
+  ggplot(aes(x=direction,y=slope.bac))+
+  geom_violin(aes(fill=direction))+
+  geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+  scale_fill_manual(values=c("darkcyan","darkorange"))+
+  geom_hline(yintercept=0, linetype="dashed", color = "black")+
+  theme_classic()
+
+violin.heat <- coef.de %>% filter(padj.h<alpha) %>%
+  mutate("direction" = ifelse(LFC.h>0,"up","down")) %>%
+  select(slope.heat, direction) %>%
+  ggplot(aes(x=direction,y=slope.heat))+
+  geom_violin(aes(fill=direction))+
+  geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+  scale_fill_manual(values=c("darkcyan","darkorange"))+
+  geom_hline(yintercept=0, linetype="dashed", color = "black")+
+  theme_classic()
+
+violin.pco <- coef.de %>% filter(padj.p<alpha) %>%
+  mutate("direction" = ifelse(LFC.p>0,"up","down")) %>%
+  select(slope.pco, direction) %>%
+  ggplot(aes(x=direction,y=slope.pco))+
+  geom_violin(aes(fill=direction))+
+  geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+  scale_fill_manual(values=c("darkcyan","darkorange"))+
+  geom_hline(yintercept=0, linetype="dashed", color = "black")+
+  theme_classic()
+
+violin.comb <- coef.de %>% filter(padj.a<alpha) %>%
+  mutate("direction" = ifelse(LFC.a>0,"up","down")) %>%
+  select(slope.comb, direction) %>%
+  ggplot(aes(x=direction,y=slope.comb))+
+  geom_violin(aes(fill=direction))+
+  geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+  scale_fill_manual(values=c("darkcyan","darkorange"))+
+  geom_hline(yintercept=0, linetype="dashed", color = "black")+
+  theme_classic()
+```
